@@ -35,11 +35,22 @@ class Titanic :
         # create log10(fare) column
         self.train.insert(self.train.shape[1], 'logfare', np.log10(self.train.Fare.clip(1.)), True)
         
+        # ticket number (remove letters)
+        for ii in self.train.index :
+            for ss in self.train.Ticket[ii].split(' ') :
+                try :
+                    self.train.loc[ii,'ticketnum'] = int(ss)
+                    break
+                except ValueError :
+                    pass
+                
         overallmean = self.train.mean(axis=0)
         overallstd  = self.train.std(axis=0)
         
         # Numerical parameters which define our parameter space
-        self.pname = ['Pclass', 'logage', 'numsex', 'SibSp', 'Parch', 'logfare']
+        self.pname = ['Pclass', 'Age', 'numsex', 
+                      'SibSp', 'Parch', 'logfare',
+                      'ticketnum']
         
         # Normalize axes by the whole dataset std dev
         self.pnorm=[]
@@ -49,16 +60,16 @@ class Titanic :
         
             self.pnorm.append(pp+'_norm')
         
-        # Clean data from NaN values in Age
+        # Clean data from NaN values in Age and ticketnum
         # The other columns of interest don't have NaN values
-        self.train2 = self.train[self.train.Age.notnull()]
+        self.train2 = self.train[self.train.Age.notnull() &
+                                 self.train.ticketnum.notnull()]
         
         # Create 2 new dataset corresponding to surviving and dead passengers
         self.surv = self.train2.loc[self.train2.Survived==True , self.pname+self.pnorm]
         self.dead = self.train2.loc[self.train2.Survived==False, self.pname+self.pnorm]
         
-        
-        
+
         
         
         
@@ -84,21 +95,31 @@ class Titanic :
         # create log10(fare) column
         self.testdata.insert(self.testdata.shape[1], 'logfare', np.log10(self.testdata.Fare.clip(1.)), True)
         
+        # ticket number (remove letters)
+        for ii in self.testdata.index :
+            for ss in self.testdata.Ticket[ii].split(' ') :
+                try :
+                    self.testdata.loc[ii,'ticketnum'] = int(ss)
+                    break
+                except ValueError :
+                    pass
+                    
         # Normalize axes by the whole dataset std dev
         for pp in list(self.pname) : 
             self.testdata.insert(self.testdata.shape[1], pp+'_norm', -1, True)
             self.testdata.loc[:,pp+'_norm'] = (self.testdata.loc[:,pp]-overallmean[pp]) / overallstd[pp]
         
         
-        # Clean data from NaN values in Age
+        # Clean data from NaN values in Age and ticketnum
         # The other columns of interest don't have NaN values
-        self.test2 = pd.DataFrame( self.testdata.loc[self.testdata.Age.notnull(),:] )
+        self.test2 = pd.DataFrame( self.testdata[self.testdata.Age.notnull() & 
+                                                 self.testdata.ticketnum.notnull()] )
         
         # the data points without age
         self.test3 = pd.DataFrame( self.testdata.loc[self.testdata.Age.isnull(),:] )
-        # for test3, we won't use the age
-        self.pname3 = ['Pclass', 'numsex', 'SibSp', 'Parch', 'logfare']
-        self.pnorm3 = ['Pclass_norm', 'numsex_norm', 'SibSp_norm', 'Parch_norm', 'logfare_norm']
+        self.pname3 = ['Pclass', 'numsex', 'SibSp', 'Parch', 'logfare', 'ticketnum']
+        self.pnorm3 = ['Pclass_norm', 'numsex_norm', 'SibSp_norm', 
+                       'Parch_norm', 'logfare_norm', 'ticketnum']
         
         # all data
         self.test4 = pd.DataFrame(self.testdata.loc[:,self.pname+self.pnorm])
@@ -141,15 +162,11 @@ class Titanic :
     def classify(self, filename='') :
 
         #Continuous params:
-        #pcontfull=['logage', 'logfare']
-        pcontnormfull=['logage_norm', 'logfare_norm']
-        deltapcont=pd.DataFrame( [self.train.logage_norm.max()-
-                                  self.train.logage_norm.min(), 
-                                  self.train.logfare_norm.max()-
-                                  self.train.logfare_norm.min()] ,
-                                 index=pcontnormfull)
-        
-        
+        pcontnormfull=['Age_norm', 'logfare_norm']
+        deltapcont = pd.Series(dtype=np.float64, index=pcontnormfull)
+        for par in pcontnormfull :
+            deltapcont[par] = self.train.loc[:,par].max() - self.train.loc[:,par].min()
+            
         #Discrete parameters:
         pdiscfull=['Pclass', 'numsex', 'Parch', 'SibSp']
         #pdiscnormfull=['Pclass_norm', 'numsex_norm', 'Parch_norm', 'SibSp_norm']

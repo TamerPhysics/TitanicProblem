@@ -109,7 +109,7 @@ def expnd(testpoint, clus, clud, sigms, sigmd, pdisc, pdiscfull, pcontnorm, pcon
                     # distribution over all range of the parameter in the entire dataset
                     else : 
                         
-                        nndthisclu = nndthisclu / deltacont.loc[pp,0]
+                        nndthisclu = nndthisclu / deltacont.loc[pp]
             
         # nndthisclu should have now the "contrib" of both discrete and continuous params
         nnd = nnd + nndthisclu
@@ -241,7 +241,7 @@ def expnd(testpoint, clus, clud, sigms, sigmd, pdisc, pdiscfull, pcontnorm, pcon
                     # distribution over all range of the parameter in the entire dataset
                     else : 
                         
-                        nnsthisclu = nnsthisclu / deltacont.loc[pp,0]
+                        nnsthisclu = nnsthisclu / deltacont.loc[pp]
             
         # nnsthisclu should have now the "contrib" of both discrete and continuous params
         nns = nns + nnsthisclu
