@@ -28,3 +28,7 @@ t1.cluster(maxfrac=3)
 t1.compclu()
 t1.classify()
 
+t2 = copy.deepcopy(tdata)
+t2.cluster(maxfrac=5)
+t2.compclu()
+t2.classify()
