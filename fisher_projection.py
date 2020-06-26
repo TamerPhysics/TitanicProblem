@@ -159,7 +159,7 @@ def sepnd(datalist, pname, symstr, numdim, colstr, ax=None) :
             yy.loc[ii, 'clu'] = idata
     
     # colors
-    maxndata=200
+    maxndata=max(200,ndata)
     colfunc = pl.get_cmap('gist_ncar')
     col_list = [colfunc(icol/maxndata) for icol in range(maxndata)]
     npr.seed(0)
@@ -246,7 +246,7 @@ def projplot(datalist, evectreal, ax, pname, symstr, colstr) :
     ######### Plotting ########################
 
     # colors
-    maxndata=200
+    maxndata=max(200,ndata)
     colfunc = pl.get_cmap('gist_ncar')
     col_list = [colfunc(icol/maxndata) for icol in range(maxndata)]
     npr.seed(0)

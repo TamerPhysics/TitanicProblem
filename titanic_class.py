@@ -40,17 +40,24 @@ class Titanic :
             for ss in self.train.Ticket[ii].split(' ') :
                 try :
                     self.train.loc[ii,'ticketnum'] = int(ss)
+                    self.train.loc[ii,'ticketnum_mod'] = \
+                      int(ss) % 100000
+                    self.train.loc[ii,'ticketnum_grp'] = \
+                      int(ss) // 100000
                     break
                 except ValueError :
                     pass
-                
+        
+        self.train.loc[:,'ticketnum_grp_clip'] = \
+          self.train.ticketnum_grp.clip(upper=4)
+        
         overallmean = self.train.mean(axis=0)
         overallstd  = self.train.std(axis=0)
         
         # Numerical parameters which define our parameter space
         self.pname = ['Pclass', 'Age', 'numsex', 
                       'SibSp', 'Parch', 'logfare',
-                      'ticketnum']
+                      'ticketnum_mod', 'ticketnum_grp_clip']
         
         # Normalize axes by the whole dataset std dev
         self.pnorm=[]
@@ -100,10 +107,17 @@ class Titanic :
             for ss in self.testdata.Ticket[ii].split(' ') :
                 try :
                     self.testdata.loc[ii,'ticketnum'] = int(ss)
+                    self.testdata.loc[ii,'ticketnum_mod'] = \
+                      int(ss) % 100000
+                    self.testdata.loc[ii,'ticketnum_grp'] = \
+                      int(ss) // 100000
                     break
                 except ValueError :
                     pass
                     
+        self.testdata.loc[:,'ticketnum_grp_clip'] = \
+          self.testdata.ticketnum_grp.clip(upper=4)
+          
         # Normalize axes by the whole dataset std dev
         for pp in list(self.pname) : 
             self.testdata.insert(self.testdata.shape[1], pp+'_norm', -1, True)
@@ -112,9 +126,11 @@ class Titanic :
         
         # Clean data from NaN values in Age and ticketnum
         # The other columns of interest don't have NaN values
-        self.test2 = pd.DataFrame( self.testdata[self.testdata.Age.notnull() & 
-                                                 self.testdata.ticketnum.notnull()] )
+        self.test2 = pd.DataFrame( 
+                self.testdata[self.testdata.Age.notnull() & 
+                              self.testdata.ticketnum.notnull()] )
         
+        """
         # the data points without age
         self.test3 = pd.DataFrame( self.testdata.loc[self.testdata.Age.isnull(),:] )
         self.pname3 = ['Pclass', 'numsex', 'SibSp', 'Parch', 'logfare', 'ticketnum']
@@ -123,7 +139,7 @@ class Titanic :
         
         # all data
         self.test4 = pd.DataFrame(self.testdata.loc[:,self.pname+self.pnorm])
-
+        """
 
 
 
@@ -159,18 +175,17 @@ class Titanic :
                              1e-6, self.pnorm, 
                              self.surv, self.dead)
 
-    def classify(self, filename='') :
+    def classify(self, filename='', 
+          pcontnormfull=['Age_norm', 'logfare_norm', 'ticketnum_mod_norm'],
+          pdiscfull=['Pclass', 'numsex', 'Parch', 'SibSp', 'ticketnum_grp_clip']) :
 
-        #Continuous params:
-        pcontnormfull=['Age_norm', 'logfare_norm']
+        #Continuous params: pcontnormfull
         deltapcont = pd.Series(dtype=np.float64, index=pcontnormfull)
         for par in pcontnormfull :
             deltapcont[par] = self.train.loc[:,par].max() - self.train.loc[:,par].min()
             
-        #Discrete parameters:
-        pdiscfull=['Pclass', 'numsex', 'Parch', 'SibSp']
-        #pdiscnormfull=['Pclass_norm', 'numsex_norm', 'Parch_norm', 'SibSp_norm']
-        
+        #Discrete parameters: pdiscfull
+
         newpoint = pd.DataFrame(columns=self.pname+self.pnorm, index=[0])
         self.expn=pd.DataFrame(columns=['ns','nd','Survived'],
                                index=self.testdata.index)
@@ -181,7 +196,6 @@ class Titanic :
             pcontnorm = list( self.testdata.loc[ii,pcontnormfull].index[ self.testdata.loc[ii,pcontnormfull].notnull() ] )
             pdisc = list( self.testdata.loc[ii,pdiscfull].index[ self.testdata.loc[ii,pdiscfull].notnull() ] )
         
-            #self.expn.loc[ii,:] = expnd(newpoint, clus, clud, means, meand, sigms, sigmd, pdisc, pdiscfull, pcontnorm, pcontnormfull, deltapcont, self.surv, self.dead)    
         
             
             self.expn.loc[ii,:] = expectedn3.expnd(newpoint, self.clus, self.clud, 
