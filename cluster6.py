@@ -8,14 +8,11 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as pl
-import time
-from matplotlib.widgets import Slider
+#import time
+#from matplotlib.widgets import Slider
 
 import fisher_projection
 
-import pdb
-
-#import cludiststat5
 
 def cluster(origsurv, sdist, origdead, ddist, pname, maxfrac, minsig) :
 
@@ -90,94 +87,52 @@ def cluster(origsurv, sdist, origdead, ddist, pname, maxfrac, minsig) :
     sigms2tot.loc[surv.index.intersection(origsurv.index)] = minsig**2
     sigmd2tot.loc[dead.index.intersection(origdead.index)] = minsig**2
         
-    ds2_s = pd.DataFrame(index=surv.index, columns=surv.index, dtype=np.float64)
-    ds2_d = pd.DataFrame(index=dead.index, columns=dead.index, dtype=np.float64)
+#    ds2_s = pd.DataFrame(index=surv.index, columns=surv.index, dtype=np.float64)
+#    ds2_d = pd.DataFrame(index=dead.index, columns=dead.index, dtype=np.float64)
         
-    vstat=[]    
-    dist2_sd = {}
-    merged=[]
-    idx2mrg = [-1,None,None]
-    while sdist.shape[0]>20 and ddist.shape[0]>20:
-
-        findnext2clus(clus, clud, surv, dead, origsurv, origdead, means, meand, sigms, sigmd, sigms2tot, sigmd2tot, pname, minsig**2, dist2_sd, ds2_s, ds2_d, idx2mrg)
-        
-        if   idx2mrg[0]==0 :
-            # add new cluste to sdist and surv, don't need return values, 
-            # since we're determining (i,j) with findnext2clus()
-            _, _ = add2clu(idx2mrg[1],idx2mrg[2],sdist,clus,surv,pname,exclus)
+#    vstat=[]    
+#    dist2_sd = {}
+#    merged=[]
+#    idx2mrg = [-1,None,None]
+#    while sdist.shape[0]>20 and ddist.shape[0]>20:
+#
+#        findnext2clus(clus, clud, surv, dead, origsurv, origdead, means, meand, sigms, sigmd, sigms2tot, sigmd2tot, pname, minsig**2, dist2_sd, ds2_s, ds2_d, idx2mrg)
+#        
+#        if   idx2mrg[0]==0 :
+#            # add new cluste to sdist and surv, don't need return values, 
+#            # since we're determining (i,j) with findnext2clus()
+#            _, _ = add2clu(idx2mrg[1],idx2mrg[2],sdist,clus,surv,pname,exclus)
+#            
+#            # remove the two clusters which were just merged from ds2_s
+#            ds2_s.drop( [idx2mrg[1],idx2mrg[2]], axis=0, inplace=True ) 
+#            ds2_s.drop( [idx2mrg[1],idx2mrg[2]], axis=1, inplace=True ) 
+#            
+#            merged.append([idx2mrg[1],idx2mrg[2],0])
+#            
+#        elif idx2mrg[0]==1 :
+#            # add new cluster to ddist and dead 
+#            _, _ = add2clu(idx2mrg[1],idx2mrg[2],ddist,clud,dead,pname,exclud)
+#            
+#            # remove the two clusters which were just merged from ds2_d
+#            ds2_d.drop( [idx2mrg[1],idx2mrg[2]], axis=0, inplace=True ) 
+#            ds2_d.drop( [idx2mrg[1],idx2mrg[2]], axis=1, inplace=True ) 
+#
+#            merged.append([idx2mrg[1],idx2mrg[2],1])
+#        
+#        print('last merged: ', merged[-1])
+#        
+#        # calculate the statistic
+#        vstat.append( idx2mrg[3] )
+#        
+#        print(sdist.shape, ddist.shape)
             
-            # remove the two clusters which were just merged from ds2_s
-            ds2_s.drop( [idx2mrg[1],idx2mrg[2]], axis=0, inplace=True ) 
-            ds2_s.drop( [idx2mrg[1],idx2mrg[2]], axis=1, inplace=True ) 
-            
-            merged.append([idx2mrg[1],idx2mrg[2],0])
-            
-        elif idx2mrg[0]==1 :
-            # add new cluster to ddist and dead 
-            _, _ = add2clu(idx2mrg[1],idx2mrg[2],ddist,clud,dead,pname,exclud)
-            
-            # remove the two clusters which were just merged from ds2_d
-            ds2_d.drop( [idx2mrg[1],idx2mrg[2]], axis=0, inplace=True ) 
-            ds2_d.drop( [idx2mrg[1],idx2mrg[2]], axis=1, inplace=True ) 
-
-            merged.append([idx2mrg[1],idx2mrg[2],1])
-        
-        print('last merged: ', merged[-1])
-        
-        # calculate the statistic
-        vstat.append( idx2mrg[3] )
-        
-        print(sdist.shape, ddist.shape)
-            
-        
-    def plotoldclusters(nn) :
-        
-        nn = int(nn)
-        oldclus = dict(clus)
-        oldclud = dict(clud)
-        
-        
-        for ii in range(len(merged)-1, nn-1, -1) :
-
-            if   merged[ii][2]==0 :
-                
-                #clu=merged[ii][0] :
-                oldclus[merged[ii][0]] = exclus[merged[ii][0]] 
-                oldclus[merged[ii][1]] = exclus[merged[ii][1]]
-
-                for kk in oldclus.keys() :
-                    if exclus[merged[ii][0]][0] in oldclus[kk]:
-                        #for cc in exclus[clu] : oldclus[kk].remove(cc)
-                        del oldclus[kk]
-                        break
-                    
-            elif merged[ii][2]==1 :
-
-                oldclud[merged[ii][0]] = exclud[merged[ii][0]] 
-                oldclud[merged[ii][1]] = exclud[merged[ii][1]]
-
-                for kk in oldclud.keys() :
-                    if exclud[merged[ii][0]][0] in oldclud[kk]:
-                        del oldclud[kk]
-                        break
-
-        for ll in ax.lines : ll.remove()        
-        ssets = [ origsurv.loc[oldclus[kk], pname] for kk in oldclus.keys() ]
-        dsets = [ origdead.loc[oldclud[kk], pname] for kk in oldclud.keys() ]
-        fisher_projection.projplot(ssets+dsets, evect, ax, pname, 'o'*len(ssets)+'v'*len(dsets), '')
-    
-    
     ssets = [ origsurv.loc[clus[kk], pname] for kk in clus.keys() ]
     dsets = [ origdead.loc[clud[kk], pname] for kk in clud.keys() ]
     fisher_projection.projplot(ssets+dsets, evect, ax, pname, 'o'*len(ssets)+'v'*len(dsets), '')
 
     pl.subplots_adjust(left=0.25, bottom=0.25)
-    """
-    sliderax = pl.axes([0.25, 0.1, 0.65, 0.03])
-    historysldr = Slider(sliderax, 'step', 0, len(merged)-1, valinit=len(merged)-1)
-    historysldr.on_changed(plotoldclusters)
-    """
-    return clus, sdist, surv, clud, ddist, dead, vstat, merged, exclus, exclud, ax, evect
+
+    return clus, sdist, surv, clud, ddist, dead, None, None, exclus, exclud, ax, evect
 
     
     
@@ -187,147 +142,147 @@ def cluster(origsurv, sdist, origdead, ddist, pname, maxfrac, minsig) :
     
 
 
-def findnext2clus(clus, clud, surv, dead, origsurv, origdead, means, meand, sigms, sigmd, sigms2tot, sigmd2tot, pname, minsig2, dist2_sd, ds2_s, ds2_d, idx2mrg):
-    
-    def dist2ij(ii,jj) :
-    
-        if (ii,jj) not in dist2_sd.keys() : 
-            dist2_sd[(ii,jj)] = ((means.loc[ii,pname] - meand.loc[jj,pname])**2).sum()
-            
-        return dist2_sd[(ii,jj)]
-
-
-    def denom(ii,jj) :
-        
-        if ii not in sigms2tot.index :
-            # vector p_i
-            means.loc[ii,pname] = origsurv.loc[clus[ii], pname].mean()
-            # sigma_id
-            sigms.loc[ii,pname] = origsurv.loc[clus[ii], pname].std()
-            # sigma_i
-            sigms2tot.loc[ii] = (sigms.loc[ii,pname]**2).sum()
-
-        if jj not in sigmd2tot.index :
-            # vector p_i
-            meand.loc[jj,pname] = origdead.loc[clud[jj], pname].mean()
-            # sigma_id
-            sigmd.loc[jj,pname] = origdead.loc[clud[jj], pname].std()
-            # sigma_i
-            sigmd2tot.loc[jj] = (sigmd.loc[jj,pname]**2).sum()
-        
-        return max( sigms2tot.loc[ii], minsig2 ) + \
-               max( sigmd2tot.loc[jj], minsig2 )
-
-               
-    
-    if idx2mrg[0] == -1 :
-        for ii1 in surv.index :
-            for ii2 in surv.index[surv.index.slice_indexer(start=ii1)][1:] :
-            
-                print(ii1,ii2)
-                # vector of len(pname)
-                p_i = origsurv.loc[ clus[ii1]+clus[ii2], pname ].mean(axis=0)
-                
-                # scalar
-                sigtoti2 = max(
-                 (origsurv.loc[clus[ii1]+clus[ii2], pname].std(axis=0)**2).sum() , 
-                  minsig2 )
-                
-                
-                ds2_s.loc[ii1,ii2] = ( ((meand.loc[:,pname]-p_i)**2).sum(axis=1) / \
-                                       (sigtoti2 + sigmd2tot)               ).sum()
-                
-                for iremoved in [ii1,ii2] :
-                    for jj in clud.keys() :
-                        thisdenom = denom(iremoved,jj)
-                        ds2_s.loc[ii1,ii2] = \
-                        ds2_s.loc[ii1,ii2] - dist2ij(iremoved,jj)/thisdenom
-    
-    
-    
-    
-        for jj1 in dead.index :
-            for jj2 in dead.index[dead.index.slice_indexer(start=jj1)][1:] :
-            
-                # vector of len(pname)
-                p_j = origdead.loc[ clud[jj1]+clud[jj2], pname ].mean(axis=0)
-                
-                # scalar
-                sigtotj2 = max(
-                 (origdead.loc[clud[jj1]+clud[jj2] ,pname].std(axis=0)**2).sum() , 
-                  minsig2 )
-                
-                
-                ds2_d.loc[jj1,jj2] = ( ((means.loc[:,pname]-p_j)**2).sum(axis=1) / \
-                                       (sigtotj2 + sigms2tot)               ).sum()
-                
-                for jremoved in [jj1,jj2] :
-                    for ii in clus.keys() :
-                        thisdenom = denom(ii,jremoved)
-                        ds2_d.loc[jj1,jj2] = \
-                        ds2_d.loc[jj1,jj2] - dist2ij(ii,jremoved)/thisdenom
-
-    elif idx2mrg[0]==0:
-        
-        ii2 = surv.index[-1]
-        ds2_s.loc[ii2,:] = np.nan
-        for ii1 in surv.index[0:-1] :
-
-            # vector of len(pname)
-            p_i = origsurv.loc[ clus[ii1]+clus[ii2], pname ].mean(axis=0)
-            
-            # scalar
-            sigtoti2 = max(
-             (origsurv.loc[clus[ii1]+clus[ii2], pname].std(axis=0)**2).sum() , 
-              minsig2 )
-            
-            
-            ds2_s.loc[ii1,ii2] = ( ((meand.loc[:,pname]-p_i)**2).sum(axis=1) / \
-                                   (sigtoti2 + sigmd2tot)               ).sum()
-            
-            for iremoved in [ii1,ii2] :
-                for jj in clud.keys() :
-                    thisdenom = denom(iremoved,jj)
-                    ds2_s.loc[ii1,ii2] = \
-                    ds2_s.loc[ii1,ii2] - dist2ij(iremoved,jj)/thisdenom        
-        
-    elif idx2mrg[0]==1: 
-        
-        jj2 = dead.index[-1]
-        ds2_d.loc[jj2,:] = np.nan      
-        for jj1 in dead.index[0:-1] :
-
-            # vector of len(pname)
-            p_j = origdead.loc[ clud[jj1]+clud[jj2], pname ].mean(axis=0)
-            
-            # scalar
-            sigtotj2 = max(
-             (origdead.loc[clud[jj1]+clud[jj2] ,pname].std(axis=0)**2).sum() , 
-              minsig2 )
-            
-            
-            ds2_d.loc[jj1,jj2] = ( ((means.loc[:,pname]-p_j)**2).sum(axis=1) / \
-                                   (sigtotj2 + sigms2tot)               ).sum()
-            
-            for jremoved in [jj1,jj2] :
-                for ii in clus.keys() :
-                    thisdenom = denom(ii,jremoved)
-                    ds2_d.loc[jj1,jj2] = \
-                    ds2_d.loc[jj1,jj2] - dist2ij(ii,jremoved)/thisdenom         
-            
-            
-    ii1v = ds2_s.idxmax(axis=0)
-    ii2  = ds2_s.max(axis=0).idxmax()
-    ii1  = int(ii1v[ii2])
-    
-    jj1v = ds2_d.idxmax(axis=0)
-    jj2  = ds2_d.max(axis=0).idxmax()
-    jj1  = int(jj1v[jj2])
-
-    if ds2_s.loc[ii1,ii2] > ds2_d.loc[jj1,jj2] : 
-        idx2mrg[0:3]= 0, ii1, ii2, ds2_s.loc[ii1,ii2]
-    else : 
-        idx2mrg[0:3] = 1, jj1, jj2, ds2_d.loc[jj1,jj2]
+#def findnext2clus(clus, clud, surv, dead, origsurv, origdead, means, meand, sigms, sigmd, sigms2tot, sigmd2tot, pname, minsig2, dist2_sd, ds2_s, ds2_d, idx2mrg):
+#    
+#    def dist2ij(ii,jj) :
+#    
+#        if (ii,jj) not in dist2_sd.keys() : 
+#            dist2_sd[(ii,jj)] = ((means.loc[ii,pname] - meand.loc[jj,pname])**2).sum()
+#            
+#        return dist2_sd[(ii,jj)]
+#
+#
+#    def denom(ii,jj) :
+#        
+#        if ii not in sigms2tot.index :
+#            # vector p_i
+#            means.loc[ii,pname] = origsurv.loc[clus[ii], pname].mean()
+#            # sigma_id
+#            sigms.loc[ii,pname] = origsurv.loc[clus[ii], pname].std()
+#            # sigma_i
+#            sigms2tot.loc[ii] = (sigms.loc[ii,pname]**2).sum()
+#
+#        if jj not in sigmd2tot.index :
+#            # vector p_i
+#            meand.loc[jj,pname] = origdead.loc[clud[jj], pname].mean()
+#            # sigma_id
+#            sigmd.loc[jj,pname] = origdead.loc[clud[jj], pname].std()
+#            # sigma_i
+#            sigmd2tot.loc[jj] = (sigmd.loc[jj,pname]**2).sum()
+#        
+#        return max( sigms2tot.loc[ii], minsig2 ) + \
+#               max( sigmd2tot.loc[jj], minsig2 )
+#
+#               
+#    
+#    if idx2mrg[0] == -1 :
+#        for ii1 in surv.index :
+#            for ii2 in surv.index[surv.index.slice_indexer(start=ii1)][1:] :
+#            
+#                print(ii1,ii2)
+#                # vector of len(pname)
+#                p_i = origsurv.loc[ clus[ii1]+clus[ii2], pname ].mean(axis=0)
+#                
+#                # scalar
+#                sigtoti2 = max(
+#                 (origsurv.loc[clus[ii1]+clus[ii2], pname].std(axis=0)**2).sum() , 
+#                  minsig2 )
+#                
+#                
+#                ds2_s.loc[ii1,ii2] = ( ((meand.loc[:,pname]-p_i)**2).sum(axis=1) / \
+#                                       (sigtoti2 + sigmd2tot)               ).sum()
+#                
+#                for iremoved in [ii1,ii2] :
+#                    for jj in clud.keys() :
+#                        thisdenom = denom(iremoved,jj)
+#                        ds2_s.loc[ii1,ii2] = \
+#                        ds2_s.loc[ii1,ii2] - dist2ij(iremoved,jj)/thisdenom
+#    
+#    
+#    
+#    
+#        for jj1 in dead.index :
+#            for jj2 in dead.index[dead.index.slice_indexer(start=jj1)][1:] :
+#            
+#                # vector of len(pname)
+#                p_j = origdead.loc[ clud[jj1]+clud[jj2], pname ].mean(axis=0)
+#                
+#                # scalar
+#                sigtotj2 = max(
+#                 (origdead.loc[clud[jj1]+clud[jj2] ,pname].std(axis=0)**2).sum() , 
+#                  minsig2 )
+#                
+#                
+#                ds2_d.loc[jj1,jj2] = ( ((means.loc[:,pname]-p_j)**2).sum(axis=1) / \
+#                                       (sigtotj2 + sigms2tot)               ).sum()
+#                
+#                for jremoved in [jj1,jj2] :
+#                    for ii in clus.keys() :
+#                        thisdenom = denom(ii,jremoved)
+#                        ds2_d.loc[jj1,jj2] = \
+#                        ds2_d.loc[jj1,jj2] - dist2ij(ii,jremoved)/thisdenom
+#
+#    elif idx2mrg[0]==0:
+#        
+#        ii2 = surv.index[-1]
+#        ds2_s.loc[ii2,:] = np.nan
+#        for ii1 in surv.index[0:-1] :
+#
+#            # vector of len(pname)
+#            p_i = origsurv.loc[ clus[ii1]+clus[ii2], pname ].mean(axis=0)
+#            
+#            # scalar
+#            sigtoti2 = max(
+#             (origsurv.loc[clus[ii1]+clus[ii2], pname].std(axis=0)**2).sum() , 
+#              minsig2 )
+#            
+#            
+#            ds2_s.loc[ii1,ii2] = ( ((meand.loc[:,pname]-p_i)**2).sum(axis=1) / \
+#                                   (sigtoti2 + sigmd2tot)               ).sum()
+#            
+#            for iremoved in [ii1,ii2] :
+#                for jj in clud.keys() :
+#                    thisdenom = denom(iremoved,jj)
+#                    ds2_s.loc[ii1,ii2] = \
+#                    ds2_s.loc[ii1,ii2] - dist2ij(iremoved,jj)/thisdenom        
+#        
+#    elif idx2mrg[0]==1: 
+#        
+#        jj2 = dead.index[-1]
+#        ds2_d.loc[jj2,:] = np.nan      
+#        for jj1 in dead.index[0:-1] :
+#
+#            # vector of len(pname)
+#            p_j = origdead.loc[ clud[jj1]+clud[jj2], pname ].mean(axis=0)
+#            
+#            # scalar
+#            sigtotj2 = max(
+#             (origdead.loc[clud[jj1]+clud[jj2] ,pname].std(axis=0)**2).sum() , 
+#              minsig2 )
+#            
+#            
+#            ds2_d.loc[jj1,jj2] = ( ((means.loc[:,pname]-p_j)**2).sum(axis=1) / \
+#                                   (sigtotj2 + sigms2tot)               ).sum()
+#            
+#            for jremoved in [jj1,jj2] :
+#                for ii in clus.keys() :
+#                    thisdenom = denom(ii,jremoved)
+#                    ds2_d.loc[jj1,jj2] = \
+#                    ds2_d.loc[jj1,jj2] - dist2ij(ii,jremoved)/thisdenom         
+#            
+#            
+#    ii1v = ds2_s.idxmax(axis=0)
+#    ii2  = ds2_s.max(axis=0).idxmax()
+#    ii1  = int(ii1v[ii2])
+#    
+#    jj1v = ds2_d.idxmax(axis=0)
+#    jj2  = ds2_d.max(axis=0).idxmax()
+#    jj1  = int(jj1v[jj2])
+#
+#    if ds2_s.loc[ii1,ii2] > ds2_d.loc[jj1,jj2] : 
+#        idx2mrg[0:3]= 0, ii1, ii2, ds2_s.loc[ii1,ii2]
+#    else : 
+#        idx2mrg[0:3] = 1, jj1, jj2, ds2_d.loc[jj1,jj2]
 
 
 
