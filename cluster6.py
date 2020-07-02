@@ -16,6 +16,10 @@ import pdb
 
 def cluster(origsurv, sdist, origdead, ddist, pname, maxfrac, minsig) :
 
+    # use existing keyword for the new method
+    eps = maxfrac
+    min_samples = minsig
+    
     surv = origsurv.loc[:,pname]
     origsurv = origsurv.loc[:,pname]
     sdist= pd.DataFrame(sdist)
@@ -28,10 +32,6 @@ def cluster(origsurv, sdist, origdead, ddist, pname, maxfrac, minsig) :
     clud= {} # {idx:[idx] for idx in dead.index}
     #exclud={}
 
-    # Maximum existing distance
-    #sdmax=sdist.max().max()
-    #ddmax=ddist.max().max()
-    
     # Last index of members, before clustering
     slastindex = sdist.index.max()
     dlastindex = ddist.index.max()
@@ -48,19 +48,11 @@ def cluster(origsurv, sdist, origdead, ddist, pname, maxfrac, minsig) :
         sdist.iloc[ii,ii] = 0
     
     # compute cluster
-    dbclus = DBSCAN(metric='precomputed', eps=1, min_samples=3).fit(sdist)
+    dbclus = DBSCAN(metric='precomputed', 
+                    eps=eps, min_samples=min_samples, 
+                    n_jobs=3).fit(sdist)
     slbl= pd.Series( dbclus.labels_, index=surv.index)
     
-#    # save cluster in clus dictionary
-#    for ii in range(len(dbclus.labels_)) :
-##        if dbclus.labels_[ii] == -1 :
-##            clus[surv.index[ii]] = [surv.index[ii]]
-##        else : 
-#        if dbclus.labels_[ii] != -1 and slastindex+1+ii in clus :
-#            clus[slastindex+1+ii].append(surv.index[ii])
-#        else : 
-#            clus[slastindex+1+ii] =[surv.index[ii]]
-
     # save cluster in clus dictionary
     for ii in slbl.index :
         if   slbl[ii] == -1 :
@@ -95,14 +87,6 @@ def cluster(origsurv, sdist, origdead, ddist, pname, maxfrac, minsig) :
         sdist.loc[newindex,:] = np.NaN
     
     # remove passengers that are now in a cluster
-#    sincluster = surv.index[np.where(dbclus.labels_ != -1)]
-#    sdist.drop(sincluster, axis=0, inplace=True)
-#    sdist.drop(sincluster, axis=1, inplace=True)
-#    surv.drop(sincluster, axis=0, inplace=True)
-#    for iclu in sincluster:
-#        del clus[iclu]
-    
-    # remove passengers that are now in a cluster
     surv.drop(sincluster, axis=0, inplace=True)
 
 
@@ -120,19 +104,11 @@ def cluster(origsurv, sdist, origdead, ddist, pname, maxfrac, minsig) :
         ddist.iloc[ii,ii] = 0
     
     # compute cluster
-    dbclud = DBSCAN(metric='precomputed', eps=1, min_samples=3).fit(ddist)
+    dbclud = DBSCAN(metric='precomputed',
+                    eps=eps, min_samples=min_samples, 
+                    n_jobs=3).fit(ddist)
     dlbl= pd.Series( dbclud.labels_, index=dead.index)
     
-#    # save cluster in clud dictionary
-#    for ii in range(len(dbclud.labels_)) :
-##        if dbclud.labels_[ii] == -1 :
-##            clud[dead.index[ii]] = [dead.index[ii]]
-##        else : 
-#        if dbclud.labels_[ii] != -1 and dlastindex+1+ii in clud :
-#            clud[dlastindex+1+ii].append(dead.index[ii])
-#        else : 
-#            clud[dlastindex+1+ii] =[dead.index[ii]]
-
     # save cluster in clus dictionary
     for ii in dlbl.index :
         if   dlbl[ii] == -1 :
@@ -153,9 +129,6 @@ def cluster(origsurv, sdist, origdead, ddist, pname, maxfrac, minsig) :
     
         newindex = dlastindex+1+label
         
-#        dead.loc[newindex,:] = \
-#         dead.loc[ dead.index[np.where(dbclud.labels_==iclu)] ,:].mean()
-   
         dead.loc[newindex,:] = dead.loc[ 
                 dlbl.where(dlbl == label).dropna().index ,:].mean()
         
@@ -178,16 +151,18 @@ def cluster(origsurv, sdist, origdead, ddist, pname, maxfrac, minsig) :
     dsets = [ origdead.loc[clud[kk], pname] for kk in clud.keys() ]
 
     # find the best projection on 3d
-    yy, evect, ld, ax = fisher_projection.sepnd(ssets+dsets, pname, 'o'*len(ssets)+'v'*len(dsets), 3, '')
+    try :
+        yy, evect, ld, ax = fisher_projection.sepnd(ssets+dsets, pname, 'o'*len(ssets)+'v'*len(dsets), 3, '')
 
-    # visualize clusters
-    fisher_projection.projplot(ssets+dsets, evect, ax, pname, 'o'*len(ssets)+'v'*len(dsets), '')
-
-    pl.subplots_adjust(left=0.25, bottom=0.25)
-
-    # compute new distance matrices with new clusters
-    # instead of individual passengers
+        ax.set_title('DBSCAN clustering with eps={0:3.3} and min_samples={1:d}'.format(float(eps), min_samples))
     
+    except np.linalg.LinAlgError :
+        print()
+        print('Fisher matrix computation gave a singular matrix')
+        print()
+        evect=None
+        ax=None
+
 
     return clus, sdist, surv, clud, ddist, dead, None, None, None, None, ax, evect
 
