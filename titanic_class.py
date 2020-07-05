@@ -9,6 +9,9 @@ import compclu
 import expectedn3
 import distmatrix7
 
+from sklearn.tree import DecisionTreeClassifier as DecisTree
+from sklearn.ensemble import RandomForestClassifier as RndFrst
+
 # order of functions to run
 # initialize 
 # --> .calcdist() 
@@ -124,25 +127,20 @@ class Titanic :
             self.testdata.loc[:,pp+'_norm'] = (self.testdata.loc[:,pp]-overallmean[pp]) / overallstd[pp]
         
         
-        # Clean data from NaN values in Age and ticketnum
+        # Clean data from NaN values in Age, Fare and ticketnum
         # The other columns of interest don't have NaN values
         self.test2 = pd.DataFrame( 
                 self.testdata[self.testdata.Age.notnull() & 
-                              self.testdata.ticketnum.notnull()] )
+                              self.testdata.ticketnum.notnull() &
+                              self.testdata.Fare.notnull()] )
+
+
+        self.testbadpars=['Age', 'logfare', 
+                          'ticketnum_mod', 'ticketnum_grp_clip']
         
-        """
-        # the data points without age
-        self.test3 = pd.DataFrame( self.testdata.loc[self.testdata.Age.isnull(),:] )
-        self.pname3 = ['Pclass', 'numsex', 'SibSp', 'Parch', 'logfare', 'ticketnum']
-        self.pnorm3 = ['Pclass_norm', 'numsex_norm', 'SibSp_norm', 
-                       'Parch_norm', 'logfare_norm', 'ticketnum']
-        
-        # all data
-        self.test4 = pd.DataFrame(self.testdata.loc[:,self.pname+self.pnorm])
-        """
-
-
-
+        self.testbadparsnorm=[]
+        for pp in list(self.testbadpars) : 
+            self.testbadparsnorm.append(pp+'_norm')
 
     ############# DISTANCE MATRIX #################
     def calcdists(self) :
@@ -211,3 +209,194 @@ class Titanic :
 
 
 
+    # split training data in order to test the model
+    # on part of it
+    def splitdata(self, frac=0.2, seed=None, train=None) :
+
+        if train is None :
+            train = self.train
+        
+        np.random.seed(seed)
+        
+        # which data points to extract
+        where_extracted = pd.Series( np.random.random(train.shape[0]) < frac,
+                                     index=train.index)
+        
+        # test data set where we can verify our accuracy
+        self.testsample = train.loc[where_extracted,:]
+        
+        # reduced size training dataset
+        self.minitrain= train.loc[~where_extracted,:]
+        self.minisurv = self.minitrain.loc[self.minitrain.Survived==True, 
+                                           self.pname+self.pnorm]
+        self.minidead = self.minitrain.loc[self.minitrain.Survived==False, 
+                                           self.pname+self.pnorm]
+        
+
+
+    
+    
+    
+    
+    
+    
+    # decision tree model
+    def dectree(self, train=None, pars=None, compare2=None) :
+        
+        if train is None : 
+            train = self.train
+            
+        if pars is None :
+            pars = self.pnorm
+        
+        train = train.dropna()
+        
+        # classifier object
+        clf = DecisTree()
+        
+        # Learning from the data 
+        clf.fit(train.loc[:, pars], train.loc[:, 'Survived'])
+        
+        # Predict
+        predarr = clf.predict(self.test2.loc[:, pars])
+
+        # Save predictions as pandas data frame        
+        pred2 = pd.Series(predarr, index=self.test2.index)
+        self.pred = pd.Series(-1, dtype=np.int, index=self.testdata.index)
+        self.pred.loc[pred2.index] = pred2
+        
+        # run prediction for data points with NaN values for
+        # some parameters
+        # this will be true bc test data has some
+        # NaN values that were excluded in self.test2
+        if (self.pred==-1).sum() > 0 :
+            
+            testdata = self.testdata.loc[:,pars]
+            
+            # data points (rows) where there's at least 1 NaN value
+            # these will make up our testing dataset
+            nanrow_criteria = testdata.isna().any(axis=1)
+            
+            # the parameters (columns) where there's at least 1 NaN
+            # value. Exclude them in the training and predicting
+            # the "~" character is a logical NOT
+            column_criteria = ~testdata.isna().any()
+            
+            # select test data by excluding bad columns, and only
+            # selecting rows which have not been predicted above
+            testdata_wherena = testdata.loc[nanrow_criteria, 
+                                                 column_criteria]
+            
+            # classifier object
+            clf2 = DecisTree()
+            
+            # train the data
+            clf2.fit(train.loc[:, testdata_wherena.columns], 
+                     train.loc[:,'Survived'])
+            
+            # predict
+            predna_arr = clf2.predict(testdata_wherena)
+            
+            # save as pandas series
+            predna = pd.Series(predna_arr, index = testdata_wherena.index)
+            
+            # save in the original pred pandas series
+            self.pred.loc[testdata_wherena.index] = predna
+        
+        
+        # if we want to check the accuracy of the prediction
+        # against a test sample
+        if compare2 is not None :
+            
+            compare2 = compare2.dropna()
+            
+            predcomp_arr = clf.predict(compare2.loc[:, pars])
+        
+            predcomp = pd.Series(predcomp_arr, index=compare2.index)
+            
+            ncorrect = (predcomp*compare2.loc[:,'Survived']).sum()
+            
+            print('\nAcccuracy = ', ncorrect / predcomp.shape[0])
+            print('+/- ', ncorrect**0.5 / predcomp.shape[0])
+        
+        
+        
+    def randomforest(self, train=None, pars=None, compare2=None, **kwargs) :
+        
+        if train is None : 
+            train = self.train
+            
+        if pars is None :
+            pars = self.pnorm
+        
+        train = train.dropna()
+        
+        # classifier object
+        clf = RndFrst(**kwargs)
+        
+        # Learning from the data 
+        clf.fit(train.loc[:, pars], train.loc[:, 'Survived'])
+        
+        # Predict
+        predarr = clf.predict(self.test2.loc[:, pars])
+
+        # Save predictions as pandas data frame        
+        pred2 = pd.Series(predarr, index=self.test2.index)
+        self.predforest = pd.Series(-1, dtype=np.int, index=self.testdata.index)
+        self.predforest.loc[pred2.index] = pred2
+        
+        # run prediction for data points with NaN values for
+        # some parameters
+        # this will be true bc test data has some
+        # NaN values that were excluded in self.test2
+        if (self.predforest==-1).sum() > 0 :
+            
+            testdata = self.testdata.loc[:,pars]
+            
+            # data points (rows) where there's at least 1 NaN value
+            # these will make up our testing dataset
+            nanrow_criteria = testdata.isna().any(axis=1)
+            
+            # the parameters (columns) where there's at least 1 NaN
+            # value. Exclude them in the training and predicting
+            # the "~" character is a logical NOT
+            column_criteria = ~testdata.isna().any()
+            
+            # select test data by excluding bad columns, and only
+            # selecting rows which have not been predicted above
+            testdata_wherena = testdata.loc[nanrow_criteria, 
+                                                 column_criteria]
+            
+            # classifier object
+            clf2 = RndFrst(**kwargs)
+            
+            # train the data
+            clf2.fit(train.loc[:, testdata_wherena.columns], 
+                     train.loc[:,'Survived'])
+            
+            # predict
+            predna_arr = clf2.predict(testdata_wherena)
+            
+            # save as pandas series
+            predna = pd.Series(predna_arr, index = testdata_wherena.index)
+            
+            # save in the original pred pandas series
+            self.predforest.loc[testdata_wherena.index] = predna
+        
+        
+        # if we want to check the accuracy of the prediction
+        # against a test sample
+        if compare2 is not None :
+            
+            compare2 = compare2.dropna()
+            
+            predcomp_arr = clf.predict(compare2.loc[:, pars])
+        
+            predcomp = pd.Series(predcomp_arr, index=compare2.index)
+            
+            ncorrect = (predcomp*compare2.loc[:,'Survived']).sum()
+            
+            print('\nAcccuracy = ', ncorrect / predcomp.shape[0])
+            print('+/- ', ncorrect**0.5 / predcomp.shape[0])     
+        
+        
