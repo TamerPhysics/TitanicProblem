@@ -3,6 +3,7 @@
 
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as pl
 
 import cluster6
 import compclu
@@ -11,6 +12,8 @@ import distmatrix7
 
 from sklearn.tree import DecisionTreeClassifier as DecisTree
 from sklearn.ensemble import RandomForestClassifier as RndFrst
+
+import pdb
 
 # order of functions to run
 # initialize 
@@ -174,8 +177,8 @@ class Titanic :
                              self.surv, self.dead)
 
     def classify(self, filename='', 
-          pcontnormfull=['Age_norm', 'logfare_norm', 'ticketnum_mod_norm'],
-          pdiscfull=['Pclass', 'numsex', 'Parch', 'SibSp', 'ticketnum_grp_clip']) :
+      pcontnormfull=['Age_norm', 'logfare_norm', 'ticketnum_mod_norm'],
+      pdiscfull=['Pclass', 'numsex', 'Parch', 'SibSp', 'ticketnum_grp_clip']) :
 
         #Continuous params: pcontnormfull
         deltapcont = pd.Series(dtype=np.float64, index=pcontnormfull)
@@ -314,7 +317,7 @@ class Titanic :
         
             predcomp = pd.Series(predcomp_arr, index=compare2.index)
             
-            ncorrect = (predcomp*compare2.loc[:,'Survived']).sum()
+            ncorrect = (predcomp==compare2.loc[:,'Survived']).sum()
             
             print('\nAcccuracy = ', ncorrect / predcomp.shape[0])
             print('+/- ', ncorrect**0.5 / predcomp.shape[0])
@@ -329,7 +332,9 @@ class Titanic :
         if pars is None :
             pars = self.pnorm
         
+        # drop NaN from train, test data
         train = train.dropna()
+        testdata = self.testdata.loc[:,pars].dropna()
         
         # classifier object
         clf = RndFrst(**kwargs)
@@ -338,10 +343,10 @@ class Titanic :
         clf.fit(train.loc[:, pars], train.loc[:, 'Survived'])
         
         # Predict
-        predarr = clf.predict(self.test2.loc[:, pars])
+        predarr = clf.predict(testdata)
 
         # Save predictions as pandas data frame        
-        pred2 = pd.Series(predarr, index=self.test2.index)
+        pred2 = pd.Series(predarr, index=testdata.index)
         self.predforest = pd.Series(-1, dtype=np.int, index=self.testdata.index)
         self.predforest.loc[pred2.index] = pred2
         
@@ -394,9 +399,109 @@ class Titanic :
         
             predcomp = pd.Series(predcomp_arr, index=compare2.index)
             
-            ncorrect = (predcomp*compare2.loc[:,'Survived']).sum()
+            ncorrect = (predcomp==compare2.loc[:,'Survived']).sum()
             
             print('\nAcccuracy = ', ncorrect / predcomp.shape[0])
             print('+/- ', ncorrect**0.5 / predcomp.shape[0])     
         
         
+        
+        
+        
+    def pairplot(self, pars=None, train=None,
+        pdiscfull=['Pclass', 'Pclass_norm', 'numsex', 'numsex_norm', 
+                   'ticketnum_grp_clip', 'ticketnum_grp_clip_norm']) :
+        
+        if pars is None : pars = self.pnorm
+        
+        fig, axs = pl.subplots(len(pars),len(pars))
+        
+        # data with all columns minus NaN values in Age and ticket number
+        if train is None : 
+            train = self.train.loc[:,pars+['Survived']] #.dropna()
+        #else :
+        #    train = train.dropna()
+
+        surv = train[train.Survived==1]
+        dead = train[train.Survived==0]
+        
+        for jj in range(len(pars)-1) :
+            for ii in range(jj+1,len(pars)) :
+                
+                train2 = train.dropna(subset=[pars[ii],pars[jj]])
+                surv2 = surv.dropna(subset=[pars[ii],pars[jj]])
+                dead2 = dead.dropna(subset=[pars[ii],pars[jj]])
+                
+                # both parameters are discrete
+                if pars[ii] in pdiscfull and pars[jj] in pdiscfull :
+                    
+                    binsi = np.sort(train2[pars[ii]].unique())
+                    binsj = np.sort(train2[pars[jj]].unique())
+                    deltai = (binsi[1:] - binsi[0:-1]).min()
+                    deltaj = (binsj[1:] - binsj[0:-1]).min()
+                    binsi = binsi - deltai/2
+                    binsj = binsj - deltaj/2
+                    binsi = np.append(binsi, binsi.max()+deltai/2)
+                    binsj = np.append(binsj, binsj.max()+deltaj/2)
+
+#                    binsi = [bb-deltai/2 for bb in binsi]
+#                    binsi.append(max(binsi)+binsi/2)
+#                    binsj = [bb-deltaj/2 for bb in binsj]
+#                    binsj.append(max(binsj)+binsj/2)
+                    
+                    htot, xx, yy = np.histogram2d(
+                            train2[pars[ii]], train2[pars[jj]],
+                            bins=[binsi,binsj] )
+
+                    hsurv, x2, y2 = np.histogram2d(surv2[pars[ii]], 
+                                                   surv2[pars[jj]],
+                                                   bins=[xx,yy])
+                    #pdb.set_trace()
+                    axs[ii,jj].imshow((hsurv/htot), 
+                              extent=(yy.min(), yy.max(), 
+                                      xx.min(), xx.max()),
+                              cmap='Greens', aspect='auto', 
+                              origin='lower')
+                
+                else :
+                    
+                    axs[ii,jj].scatter(surv2[pars[jj]], 
+                                       surv2[pars[ii]], color='green', s=1,
+                                       alpha=0.4)
+                    axs[ii,jj].scatter(dead2[pars[jj]], 
+                                       dead2[pars[ii]], color='red', s=1,
+                                       alpha=0.4)
+                    
+                # labels
+                if jj==0 : 
+                    axs[ii,jj].set_ylabel(pars[ii], size='x-small', 
+                                          rotation='horizontal')
+                if ii==len(pars)-1 :
+                    axs[ii,jj].set_xlabel(pars[jj], size='x-small')
+                
+                # tick label font size + parameters
+                axs[ii,jj].tick_params(labelsize='x-small', direction='in')
+            
+            # histogram on the diagonal
+            surv2 = surv.dropna(subset=[pars[jj]])
+            dead2 = dead.dropna(subset=[pars[jj]])
+            axs[jj,jj].hist(surv2[pars[jj]], color='green', alpha=0.5)
+            axs[jj,jj].hist(dead2[pars[jj]], color='red', alpha=0.5)
+            axs[jj,jj].tick_params(labelsize='x-small', direction='in')
+            if jj==0 : 
+                axs[jj,jj].set_ylabel(pars[jj], size='x-small', rotation='horizontal')
+            
+        # histogram on diagonal for the last parameter
+        ii=len(pars)-1
+
+        surv2 = surv.dropna(subset=[pars[ii]])
+        dead2 = dead.dropna(subset=[pars[ii]])
+        axs[ii,ii].hist(surv2[pars[ii]], color='green', alpha=0.5)
+        axs[ii,ii].hist(dead2[pars[ii]], color='red', alpha=0.5)
+        axs[ii,ii].set_xlabel(pars[ii], size='x-small')
+        axs[ii,ii].tick_params(labelsize='x-small', direction='in')
+        
+        #clear empty plots
+        for ii in range(len(pars)-1) :
+            for jj in range(ii+1,len(pars)) :
+                axs[ii,jj].axis('off')
