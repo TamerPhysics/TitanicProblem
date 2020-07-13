@@ -202,9 +202,9 @@ def sepnd(datalist, pname, symstr, numdim, colstr, ax=None) :
             ax = fig.add_subplot(111)
         for idata in range(ndata) :
             if colstr and len(colstr)==ndata: 
-                ax.hist(yy.y0[yy.clu==idata], bins=80, range=[yy.y0.min(),yy.y0.max()], color=colstr[idata], alpha=0.6)
+                ax.hist(list(yy.y0[yy.clu==idata]), bins=80, range=[yy.y0.min(),yy.y0.max()], color=colstr[idata], alpha=0.6)
             else : 
-                ax.hist(yy.y0[yy.clu==idata], bins=80, range=[yy.y0.min(),yy.y0.max()], alpha=0.6)
+                ax.hist(list(yy.y0[yy.clu==idata]), bins=80, range=[yy.y0.min(),yy.y0.max()], alpha=0.6)
 
                 
                 

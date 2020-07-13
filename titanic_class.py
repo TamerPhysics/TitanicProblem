@@ -408,7 +408,7 @@ class Titanic :
         
         
         
-    def pairplot(self, pars=None, train=None,
+    def pairplot(self, pars=None, train=None, hist=False,
         pdiscfull=['Pclass', 'Pclass_norm', 'numsex', 'numsex_norm', 
                    'ticketnum_grp_clip', 'ticketnum_grp_clip_norm']) :
         
@@ -456,13 +456,51 @@ class Titanic :
                     hsurv, x2, y2 = np.histogram2d(surv2[pars[ii]], 
                                                    surv2[pars[jj]],
                                                    bins=[xx,yy])
-                    #pdb.set_trace()
+
                     axs[ii,jj].imshow((hsurv/htot), 
                               extent=(yy.min(), yy.max(), 
                                       xx.min(), xx.max()),
-                              cmap='Greens', aspect='auto', 
+                              cmap='RdYlGn', aspect='auto', 
                               origin='lower')
                 
+                elif hist :
+                    
+                    if   pars[ii] in pdiscfull :
+                        binsi = np.sort(train2[pars[ii]].unique())
+                        binsj = np.linspace(train2[pars[jj]].min(), 
+                                            train2[pars[jj]].max(), 10)
+                    elif pars[jj] in pdiscfull :
+                        binsj = np.sort(train2[pars[jj]].unique())
+                        binsi = np.linspace(train2[pars[ii]].min(), 
+                                            train2[pars[ii]].max(), 10)
+                    else : 
+                        binsi = np.linspace(train2[pars[ii]].min(), 
+                                            train2[pars[ii]].max(), 10)
+                        binsj = np.linspace(train2[pars[jj]].min(), 
+                                            train2[pars[jj]].max(), 10)
+                        
+                    deltai = (binsi[1:] - binsi[0:-1]).min()
+                    binsi = binsi - deltai/2
+                    binsi = np.append(binsi, binsi.max()+deltai/2)
+                        
+                    deltaj = (binsj[1:] - binsj[0:-1]).min()
+                    binsj = binsj - deltaj/2
+                    binsj = np.append(binsj, binsj.max()+deltaj/2)
+                    
+                    htot, xx, yy = np.histogram2d(
+                            train2[pars[ii]], train2[pars[jj]],
+                            bins=[binsi,binsj] )
+
+                    hsurv, x2, y2 = np.histogram2d(surv2[pars[ii]], 
+                                                   surv2[pars[jj]],
+                                                   bins=[xx,yy])
+
+                    axs[ii,jj].imshow((hsurv/htot), 
+                              extent=(yy.min(), yy.max(), 
+                                      xx.min(), xx.max()),
+                              cmap='RdYlGn', aspect='auto', 
+                              origin='lower')
+                              
                 else :
                     
                     axs[ii,jj].scatter(surv2[pars[jj]], 
