@@ -24,7 +24,9 @@ import pdb
 
 class Titanic :
     
-    def __init__(self) :
+    def __init__(self, pname = ['Pclass', 'logage', 'numsex', 
+                      'SibSp', 'Parch', 'logfare',
+                      'ticketnum_mod', 'ticketnum_grp_clip']) :
         
         # Load the data
         self.train = pd.read_csv('train.csv')
@@ -61,9 +63,7 @@ class Titanic :
         overallstd  = self.train.std(axis=0)
         
         # Numerical parameters which define our parameter space
-        self.pname = ['Pclass', 'Age', 'numsex', 
-                      'SibSp', 'Parch', 'logfare',
-                      'ticketnum_mod', 'ticketnum_grp_clip']
+        self.pname = list(pname)
         
         # Normalize axes by the whole dataset std dev
         self.pnorm=[]
@@ -144,6 +144,47 @@ class Titanic :
         self.testbadparsnorm=[]
         for pp in list(self.testbadpars) : 
             self.testbadparsnorm.append(pp+'_norm')
+            
+            
+            
+            
+        #### Filled-in data in test data================
+        self.filltest = self.testdata.copy()
+        pars = self.pnorm
+        for ii in self.testdata.index :
+            if self.testdata.loc[ii, pars].isna().sum() > 0 :
+        
+                napars = list( 
+                 self.testdata.loc[ii, pars].loc[
+                   self.testdata.loc[ii, pars].isna()].index)
+        
+                goodpars=list(pars)
+                for pp in napars :
+                    goodpars.remove(pp)
+        
+                radius=0.2
+                while self.filltest.loc[ii,napars].isna().sum()>0 \
+                  or radius==0.2 or radius < 1.7 :
+
+                    # data points which are close to the
+                    # data point to be filled
+                    wh = pd.Series(True, index=self.testdata.index)
+                    for pp in goodpars :
+                        wh = wh & (
+                                (self.testdata.loc[:,pp]-
+                                 self.testdata.loc[ii,pp]).abs()<radius) \
+                             & self.testdata.loc[:,pp].notnull()
+                    
+                    self.filltest.loc[ii,napars] = \
+                      self.testdata.loc[wh,napars].mean()
+
+                    radius = radius * 2
+
+
+
+
+
+
 
     ############# DISTANCE MATRIX #################
     def calcdists(self) :
@@ -244,7 +285,8 @@ class Titanic :
     
     
     # decision tree model
-    def dectree(self, train=None, pars=None, compare2=None) :
+    def dectree(self, train=None, pars=None, compare2=None, 
+                predict=True) :
         
         if train is None : 
             train = self.train
@@ -260,51 +302,53 @@ class Titanic :
         # Learning from the data 
         clf.fit(train.loc[:, pars], train.loc[:, 'Survived'])
         
-        # Predict
-        predarr = clf.predict(self.test2.loc[:, pars])
-
-        # Save predictions as pandas data frame        
-        pred2 = pd.Series(predarr, index=self.test2.index)
-        self.pred = pd.Series(-1, dtype=np.int, index=self.testdata.index)
-        self.pred.loc[pred2.index] = pred2
-        
-        # run prediction for data points with NaN values for
-        # some parameters
-        # this will be true bc test data has some
-        # NaN values that were excluded in self.test2
-        if (self.pred==-1).sum() > 0 :
+        if predict : 
             
-            testdata = self.testdata.loc[:,pars]
+            # Predict
+            predarr = clf.predict(self.test2.loc[:, pars])
+    
+            # Save predictions as pandas data frame        
+            pred2 = pd.Series(predarr, index=self.test2.index)
+            self.pred = pd.Series(-1, dtype=np.int, index=self.testdata.index)
+            self.pred.loc[pred2.index] = pred2
             
-            # data points (rows) where there's at least 1 NaN value
-            # these will make up our testing dataset
-            nanrow_criteria = testdata.isna().any(axis=1)
-            
-            # the parameters (columns) where there's at least 1 NaN
-            # value. Exclude them in the training and predicting
-            # the "~" character is a logical NOT
-            column_criteria = ~testdata.isna().any()
-            
-            # select test data by excluding bad columns, and only
-            # selecting rows which have not been predicted above
-            testdata_wherena = testdata.loc[nanrow_criteria, 
-                                                 column_criteria]
-            
-            # classifier object
-            clf2 = DecisTree()
-            
-            # train the data
-            clf2.fit(train.loc[:, testdata_wherena.columns], 
-                     train.loc[:,'Survived'])
-            
-            # predict
-            predna_arr = clf2.predict(testdata_wherena)
-            
-            # save as pandas series
-            predna = pd.Series(predna_arr, index = testdata_wherena.index)
-            
-            # save in the original pred pandas series
-            self.pred.loc[testdata_wherena.index] = predna
+            # run prediction for data points with NaN values for
+            # some parameters
+            # this will be true bc test data has some
+            # NaN values that were excluded in self.test2
+            if (self.pred==-1).sum() > 0 :
+                
+                testdata = self.testdata.loc[:,pars]
+                
+                # data points (rows) where there's at least 1 NaN value
+                # these will make up our testing dataset
+                nanrow_criteria = testdata.isna().any(axis=1)
+                
+                # the parameters (columns) where there's at least 1 NaN
+                # value. Exclude them in the training and predicting
+                # the "~" character is a logical NOT
+                column_criteria = ~testdata.isna().any()
+                
+                # select test data by excluding bad columns, and only
+                # selecting rows which have not been predicted above
+                testdata_wherena = testdata.loc[nanrow_criteria, 
+                                                     column_criteria]
+                
+                # classifier object
+                clf2 = DecisTree()
+                
+                # train the data
+                clf2.fit(train.loc[:, testdata_wherena.columns], 
+                         train.loc[:,'Survived'])
+                
+                # predict
+                predna_arr = clf2.predict(testdata_wherena)
+                
+                # save as pandas series
+                predna = pd.Series(predna_arr, index = testdata_wherena.index)
+                
+                # save in the original pred pandas series
+                self.pred.loc[testdata_wherena.index] = predna
         
         
         # if we want to check the accuracy of the prediction
