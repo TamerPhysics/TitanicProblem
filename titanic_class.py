@@ -505,7 +505,7 @@ class Titanic :
                               extent=(yy.min(), yy.max(), 
                                       xx.min(), xx.max()),
                               cmap='RdYlGn', aspect='auto', 
-                              origin='lower')
+                              origin='lower', vmin=0, vmax=1)
                 
                 elif hist :
                     
@@ -543,7 +543,7 @@ class Titanic :
                               extent=(yy.min(), yy.max(), 
                                       xx.min(), xx.max()),
                               cmap='RdYlGn', aspect='auto', 
-                              origin='lower')
+                              origin='lower', vmin=0, vmax=1)
                               
                 else :
                     

@@ -4,7 +4,9 @@ import numpy as np
 from titanic_class import Titanic
 import fisher_projection
 
-t=Titanic()
+t=Titanic(pname=['Pclass', 'Age', 'numsex', 
+                 'SibSp', 'Parch', 'logfare',
+                 'ticketnum_mod', 'ticketnum_grp_clip'])
 
 # all params
 t.pairplot(pars=['Pclass', 'logage', 'numsex', 'SibSp', 'Parch_norm',
@@ -108,7 +110,9 @@ t6dr =t6.dropna(subset=pars)
 
 # writing the above as a tree
 
-tr = Titanic().testdata
+tr = Titanic(pname=['Pclass', 'Age', 'numsex', 
+                 'SibSp', 'Parch', 'logfare',
+                 'ticketnum_mod', 'ticketnum_grp_clip']).testdata
 
 #women+children in 1st and 2nd class
 s1 = (tr.Pclass.isin([1,2])) & ( (tr.numsex==1) | (tr.logage.lt(1.15)))
@@ -141,4 +145,4 @@ for ii in tr.index :
             tr.loc[ii,'xp']=1#np.random.randint(0,2)
 
 tr.loc[:,'Survived'] = tr.loc[:,'xp']
-tr.loc[:,'Survived'].astype('int32').to_csv('manual_tree3.csv', header=True, index=True)
+#tr.loc[:,'Survived'].astype('int32').to_csv('manual_tree3.csv', header=True, index=True)
